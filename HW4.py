@@ -286,6 +286,43 @@ def tune_ac(data, last_step, is_plot_show=False):
         silhouette_plot(data, best_y)
     return [('best score', best_score)] + best_last_step + [('best n_cluster', best_n_cluster), ('best affinity', best_affinity), ('best linkage', best_linkage), ('best clusters', best_clusters), ('best y', best_y)]
 
+def tune_kmp(data, last_step, is_plot_show=False):
+    best_last_step = [(-1, -1)]
+    best_score = -1
+    best_n_cluster = -1
+    best_n_init = -1
+    best_max_iter = -1
+    best_tol = -1
+    best_y = -1
+    print("K-Means++ Tuning...")
+    for n_clusterf in [20, 50, 60, 70, 80, 100, 200]:
+        for n_initf in [10, 20]:
+            for max_iterf in [300, 500, 800]:
+                for tolf in [1e-3, 1e-04, 1e-5]:
+                    kmeans_plus = KMeans(n_clusters=n_clusterf, init='k-means++', n_init=n_initf, max_iter=max_iterf, tol=tolf, random_state=0)
+                    y = kmeans_plus.fit_predict(data)
+                    score = silhouette_score(data, y)
+                    if score > best_score:
+                        best_last_step = last_step
+                        best_score = score
+                        best_n_cluster = n_clusterf
+                        best_n_init = n_initf
+                        best_max_iter = max_iterf
+                        best_tol = tolf
+                        best_y = y
+                        best_clusters = np.unique(y).shape[0]
+    print("AgglomerativeClustering Tune Result:")
+    print("Best silhouette_score: ", best_score)
+    for param in best_last_step:
+        print(param[0], ': ', param[1])
+    print("Best n_cluster: ", best_n_cluster)
+    print("Best n_init: ", best_n_init)
+    print("Best max_iter: ", best_max_iter)
+    print("Cluster Result: ", best_clusters)
+    if is_plot_show:
+        silhouette_plot(data, best_y)
+    return [('best score', best_score)] + best_last_step + [('best n_cluster', best_n_cluster), ('best n_init', best_n_init), ('best max_iter', best_max_iter), ('best tol', best_tol), ('best clusters', best_clusters), ('best y', best_y)]
+
 
 # t = "eoigrhsaivs ss\n\r()ddd()ad \n oqhwo\r"
 # print(t)
@@ -363,8 +400,8 @@ processed_data = pipe_lda.fit_transform(data)
 # elbow_plot(processed_data)
 
 # tune_dbscan(data, tune_lda_pre, False)
-# tune_lda_pre(data, tune_ac)
-tune_tfidf_svd_pre(data, tune_ac)
+tune_lda_pre(data, tune_kmp)
+# tune_tfidf_svd_pre(data, tune_ac)
 
 # param_grid_dbscan = [
 #             {'count__max_df': [.1],
