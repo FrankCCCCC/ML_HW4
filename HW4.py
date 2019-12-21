@@ -175,12 +175,12 @@ def tune_lda_pre(data, next_func=None, is_plot_show=1):
         flag = True
     for max_dff in [.1]:
         for max_featuresf in [5000]:
-            for n_topicsf in [50, 60, 70]:
+            for n_componentsf in [50, 60, 70]:
                 count = CountVectorizer(stop_words='english', max_df=max_dff, max_features=max_featuresf)
-                lda = LatentDirichletAllocation(n_topics = n_topicsf, random_state = 0)
+                lda = LatentDirichletAllocation(n_components = n_componentsf, random_state = 0)
                 pipe = Pipeline([('count', count), ('lda', lda)])
                 y = pipe.fit_transform(data)
-                res = next_func(y, [('max_df', max_dff), ('max_features', max_featuresf), ('n_topics', n_topicsf)], flag)
+                res = next_func(y, [('max_df', max_dff), ('max_features', max_featuresf), ('n_components', n_componentsf)], flag)
                 if res[0][1] > best_res[0][1]:
                     best_res = res
                     best_y = y
@@ -323,6 +323,45 @@ def tune_kmp(data, last_step, is_plot_show=False):
         silhouette_plot(data, best_y)
     return [('best score', best_score)] + best_last_step + [('best n_cluster', best_n_cluster), ('best n_init', best_n_init), ('best max_iter', best_max_iter), ('best tol', best_tol), ('best clusters', best_clusters), ('best y', best_y)]
 
+def tune_spc(data, last_step, is_plot_show=False):
+    best_last_step = [(-1, -1)]
+    best_score = -1
+    best_n_cluster = -1
+    best_assign_labels = -1
+    best_eigen_solver = -1
+    best_affinity = -1
+    best_y = -1
+    print("SpectralClustering Tune Result:")
+    print("Tuning...")
+    for n_clusterf in [20, 50, 60, 70, 80, 100, 200]:
+        for assign_labelsf in ['kmeans', 'discretize']:
+            for eigen_solverf in [None, 'arpack', 'lobpcg', 'amg']:
+                for affinityf in ['nearest_neighbors', 'rbf', 'precomputed', 'precomputed_nearest_neighbors']:
+                    spc = SpectralClustering(n_clusters=n_cluster, eigen_solver=eigen_solverf, affinity=affinityf, assign_labels=assign_labelsf, random_state=0)
+                    y = spc.fit_predict(data)
+                    score = silhouette_score(data, y)
+                    if score > best_score:
+                        best_last_step = last_step
+                        best_score = score
+                        best_n_cluster = n_clusterf
+                        best_assign_labels = assign_labelsf
+                        best_eigen_solver = eigen_solverf
+                        best_affinity = affinityf
+                        best_y = y
+                        best_clusters = np.unique(y).shape[0]
+    print("SpectralClustering Tune Result:")
+    print("Best silhouette_score: ", best_score)
+    for param in best_last_step:
+        print(param[0], ': ', param[1])
+    print("Best n_cluster: ", best_n_cluster)
+    print("Best assign_labels: ", best_assign_labels)
+    print("Best eigen_solver: ", best_eigen_solver)
+    print("Best affinity: ", best_affinity)
+    print("Cluster Result: ", best_clusters)
+    if is_plot_show:
+        silhouette_plot(data, best_y)
+    return [('best score', best_score)] + best_last_step + [('best n_cluster', best_n_cluster), ('best best_assign_labels', best_assign_labels), ("Best eigen_solver: ", best_eigen_solver), ("Best affinity: ", best_affinity), ('best clusters', best_clusters), ('best y', best_y)]
+
 
 # t = "eoigrhsaivs ss\n\r()ddd()ad \n oqhwo\r"
 # print(t)
@@ -350,7 +389,7 @@ count = CountVectorizer(stop_words='english', max_df=.1, max_features=5000)
 
 pca = PCA(n_components = pca_comp)
 svd = TruncatedSVD(n_components = n_comp, n_iter = 5, random_state = 0)
-lda = LatentDirichletAllocation(n_topics = n_comp, random_state = 0)
+lda = LatentDirichletAllocation(n_components = n_comp, random_state = 0)
 
 standard_scaler = StandardScaler()
 
@@ -362,7 +401,7 @@ ac = AgglomerativeClustering(n_clusters=n_cluster, affinity='euclidean', linkage
 dbscan = DBSCAN(eps = 0.5, min_samples=10, metric='euclidean')
 # optics = OPTICS(min_samples=2)
 spc = SpectralClustering(n_clusters=n_cluster, assign_labels='discretize', random_state=0)
-lda_clf = LatentDirichletAllocation(n_topics=n_cluster, random_state=0)
+lda_clf = LatentDirichletAllocation(n_components=n_cluster, random_state=0)
 
 model = ac
 
@@ -400,14 +439,15 @@ processed_data = pipe_lda.fit_transform(data)
 # elbow_plot(processed_data)
 
 # tune_dbscan(data, tune_lda_pre, False)
-tune_lda_pre(data, tune_kmp)
+# tune_lda_pre(data, tune_kmp)
 # tune_tfidf_svd_pre(data, tune_ac)
+tune_lda_pre(data, tune_spc)
 
 # param_grid_dbscan = [
 #             {'count__max_df': [.1],
 #             'count__max_features': [5000]
 #             },
-#             {'lda__n_topics': [20, 50, 100, 500, 1000, 5000]},
+#             {'lda__n_components': [20, 50, 100, 500, 1000, 5000]},
 #             {'dbscan__eps': [0.1, 0.2, 0.5, 1, 1.5, 2],
 #             'dbscan__min_samples': [2, 3, 5, 10, 15, 20]
 #             }
